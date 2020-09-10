@@ -1,0 +1,326 @@
+#include <iostream>
+#include <Windows.h>
+#include <time.h>
+HANDLE hCom; //全局变量，串口句柄
+char in_b[6] = { 0 };//读写
+unsigned char out_b[100] = { 0 };//写入
+DWORD w_byte;//读写的字节数
+DWORD r_byte;//读取的字节数
+struct tm local;
+void get_time(void);
+
+bool com_init(void);
+void com_sz(void);
+bool com_read(void);
+bool com_write(void);
+
+
+void tx(char X,char Y,char* hzk);
+bool com_init(void);
+void com_sz(void);
+bool com_read(void);
+bool com_write(void);
+void ps(int s, char z, char x, char y, const char* w);
+void pt(void);
+int get_zm(void);
+
+int main()
+{
+
+    std::cout << "串口调试程序!\n";
+    int ctl = 0;
+    //int op = 0;
+    int cp = 1;
+    int offset=0;
+    char temp[3] = { 0 };
+    char ch;
+    if (com_init())
+        com_sz();
+    menu();
+    int m = 0;
+    fopen_s(&fphzk1, "text8.txt", "a+");
+    if (fphzk1 == NULL)
+        printf("error!!\n");
+   /*
+    printf("1");
+   
+   fprintf(fphzk1, "橙光的美好一天！\0");
+    printf("d");
+    fflush(fphzk1);
+    
+    rewind(fphzk1);
+    while ((ch = getc(fphzk1)) != EOF)
+    {
+        temp[0] = ch;
+        
+        if ((ch = getc(fphzk1)) == EOF)
+            break;
+        temp[1] = ch;
+        printf("%s", temp);
+        Sleep(100);
+    }
+    printf("2");
+    printf("%s", temp);
+    printf("3");
+    */
+    while (1)
+    {
+        ps(2, 3, 1, 1, "1");
+        com_read();
+        switch (in_b[0])
+        {
+        case 4:ctl = 1; break;
+        default:break;
+        }
+        if (ctl)
+        {
+            temp[0] = 124; temp[1] = 7; ps(6, 4, 2, 0, temp);
+        }
+        while (ctl)
+        {
+            if (cp)
+            {
+                int m, n;
+                fphzk2 = fphzk1;
+                for (m = 0; m < 4; m++)
+                {
+                    for (n = 0; n < 7; n++)
+                    {
+                        ch = getc(fphzk1);
+                        if (ch < 0)
+                            temp[0] = ch;
+                        else
+                        {
+                            temp[0] = ch, temp[1] = 0;
+                            ps(6, 2, n * 16+7, m * 2 ,temp);
+                            printf("%s", temp);
+                            continue;
+                        }
+                        ch = getc(fphzk1);
+                        temp[1] = ch;
+                        tx(n * 16, m * 2 , temp);
+                        printf("%s", temp);
+                    }
+                    //printf("\n");
+                }
+                //fclose(fphzk1);
+                //fphzk1 = NULL;
+                cp = 0;
+            }
+            ps(2, 3, 1, 1, "1");
+            com_read();
+            switch (in_b[0])
+            {
+            case 8:ctl = 0; in_b[0] = 0; temp[0] = 124; temp[1] = 7; ps(6, 4, 2, 0, temp); break;
+            case 2:cp = 1; in_b[0] = 0; fphzk1 = fphzk2; temp[0] = 124; temp[1] = 7; ps(6, 4, 0, 2, temp); break;
+            case 10:cp = 1; in_b[0] = 0; temp[0] = 124; temp[1] = 7; ps(6, 4, 2, 0, temp); break;
+            case 16:temp[0] = 124; temp[1] = 7; ps(6, 4, 2, 0, temp); break;
+            default:break;
+            }
+           //pt();
+        }
+        pt();
+        //fclose(fphzk1);
+       // fphzk1 = NULL;
+    }
+    fclose(fphzk1);
+    fphzk1 = NULL;
+    CloseHandle( hCom ); //handle to object to close
+    return 23;
+}
+
+void menu(void)
+{
+    int i = 0;
+    const char*hzs ="疫情文章阅读";
+    while (hzs[i] != 0)
+    {
+        word[0] = hzs[i];
+        word[1] = hzs[i + 1];
+        get_zm();
+        w_byte = 36;
+        out_b[0] =(unsigned char) w_byte;
+        out_b[1] = 1;
+        out_b[2] = 15+ i * 8;
+        out_b[3] = 3;
+        com_write();
+        i += 2;
+        while (1)
+        {
+            com_read();
+            if (in_b[0] == 'c')
+                break;
+            Sleep(10);
+        }
+        printf("dayinsucess  %d  %d\n",word[0],word[1]);
+    }
+    get_time();
+    sprintf_s((char*)out_b,50,"cccc%d:%d:%d\0", local.tm_hour, local.tm_min, local.tm_sec);
+    w_byte = 13;
+    out_b[0] = (unsigned char)w_byte;
+    out_b[1] = 5;
+    out_b[2] = 16;
+    out_b[3] = 0;
+    com_write();
+    printf("complete!");
+}
+void ps(int s, char z, char x, char y, const char* w)
+{
+    sprintf_s((char*)out_b, 50, "cccc%s\0", w);
+    w_byte = s;
+    out_b[0] = (unsigned char)w_byte;
+    out_b[1] = z;
+    out_b[2] = x;
+    out_b[3] = y;
+    com_write();
+    if (z != 3)
+    {
+        while (1)
+        {
+            com_read();
+            if (in_b[0] == 'c')
+                break;
+            Sleep(10);
+        }
+    }
+}
+void pt(void)
+{
+    get_time();
+    sprintf_s((char*)out_b, 50, "cccc%d:%d:%d\0", local.tm_hour, local.tm_min, local.tm_sec);
+    w_byte = 13;
+    out_b[0] = (unsigned char)w_byte;
+    out_b[1] = 5;
+    out_b[2] = 16;
+    out_b[3] = 0;
+    com_write();
+    com_read();
+    printf("%d:%d:%d   %c\n", local.tm_hour, local.tm_min, local.tm_sec,in_b[0]);
+    in_b[0] = 0;
+}
+void tx(char X,char Y, char* hzk)
+{
+    int i = 0;
+    word[0] = hzk[i];
+    word[1] = hzk[i + 1];
+    get_zm();
+    w_byte = 36;
+    out_b[0] = (unsigned char)w_byte;
+    out_b[1] = 1;
+    out_b[2] = 7+X;
+    out_b[3] = Y;
+    com_write();
+    i += 2;
+    while (1)
+    {
+        com_read();
+        if (in_b[0] == 'c')
+            break;
+        Sleep(10);
+    }
+    //printf("       dayinsucess  %d  %d", word[0], word[1]);
+
+}
+void get_time(void)
+{
+    time_t t;
+    t = time(NULL);
+    localtime_s(&local,&t);
+}
+bool com_init(void)
+{
+    hCom = CreateFile("COM3",//COM1口
+        GENERIC_READ | GENERIC_WRITE, //允许读和写
+        0, //独占方式
+        NULL,
+        OPEN_EXISTING, //打开而不是创建
+        0, //同步方式
+        NULL);
+    if (hCom == (HANDLE)-1)
+    {
+        printf("打开COM失败!\n");
+        return FALSE;
+    }
+    return TRUE;
+}
+void com_sz(void)
+{
+    SetupComm(hCom, 1024, 1024); //输入缓冲区和输出缓冲区的大小都是1024
+    COMMTIMEOUTS TimeOuts; //设定读超时
+    TimeOuts.ReadIntervalTimeout = 1000;
+    TimeOuts.ReadTotalTimeoutMultiplier = 500;
+    TimeOuts.ReadTotalTimeoutConstant = 5000; //设定写超时
+    TimeOuts.WriteTotalTimeoutMultiplier = 500;
+    TimeOuts.WriteTotalTimeoutConstant = 2000;
+    SetCommTimeouts(hCom, &TimeOuts); //设置超时
+    DCB dcb;
+    GetCommState(hCom, &dcb);
+    dcb.BaudRate = 9600; //波特率为9600
+    dcb.ByteSize = 8; //每个字节有8位
+    dcb.Parity = NOPARITY; //无奇偶校验位
+    dcb.StopBits = TWOSTOPBITS; //两个停止位
+    SetCommState(hCom, &dcb);
+    PurgeComm(hCom, PURGE_TXCLEAR | PURGE_RXCLEAR);
+}
+bool com_read(void)
+{
+    //同步读串口
+    BOOL bReadStat;
+    bReadStat = ReadFile(hCom, in_b, 1, &r_byte, NULL);
+    if (!bReadStat)
+    {
+        printf("读串口失败!\n");
+        return FALSE;
+    } 
+    PurgeComm(hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
+    return TRUE;
+}
+bool com_write( void)
+{
+    //同步写串口
+    COMSTAT ComStat;
+    DWORD dwErrorFlags;
+    BOOL bWriteStat;
+    ClearCommError(hCom, &dwErrorFlags, &ComStat);
+    bWriteStat = WriteFile(hCom, (char*)out_b, w_byte, &w_byte, NULL);
+    if (!bWriteStat) 
+    { 
+        printf("写串口失败!\n");
+        return FALSE;
+    }
+    PurgeComm(hCom, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
+    return TRUE;
+}
+int get_zm(void)
+{
+
+    int i, j, k, offset;
+    int flag;
+
+
+    fopen_s(&fphzk, "hzk16", "rb");
+    if (fphzk == NULL)
+    {
+        printf("error hzk16\n");
+        return 1;
+    }
+    offset = (94 * (word[0] - 0xa0 - 1) + (word[1] - 0xa0 - 1)) * 32;
+    fseek(fphzk, offset, SEEK_SET);
+    fread(buffer, 1, 32, fphzk);
+    for (k = 0; k < 2; k++)
+    {
+        for (j = 0; j < 8; j++)
+        {
+            for (i = 0; i < 16; i++)
+            {
+                flag = buffer[k * 16 + i] & key[7 - j];
+                //printf("%s", flag ? "●" : "○");
+                out_b[k * 16 + i + 4] = buffer[k * 16 + i];
+            }
+           // printf("\n");
+        }
+    }
+    fclose(fphzk);
+    fphzk = NULL;
+    return 0;
+}
